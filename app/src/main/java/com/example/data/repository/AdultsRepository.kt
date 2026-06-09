@@ -78,4 +78,18 @@ class AdultsRepository(
             Result.failure(e)
         }
     }
+
+    suspend fun logBedtimeModeEvent(childId: String, isEnteringBedtime: Boolean): Result<Unit> {
+        return try {
+            val event = hashMapOf(
+                "childId" to childId,
+                "event" to if (isEnteringBedtime) "ENTERED_BEDTIME_MODE" else "EXITED_BEDTIME_MODE",
+                "timestamp" to System.currentTimeMillis()
+            )
+            firestore.collection("system_logs").add(event).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

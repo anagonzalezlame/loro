@@ -38,4 +38,14 @@ class AdultsModeViewModel(
             }
         }
     }
+
+    /**
+     * Logs every instance a child's device enters or exits Bedtime Mode.
+     * These events are stored in the 'system_logs' collection in Firestore.
+     */
+    fun logBedtimeModeEvent(childId: String, isEnteringBedtime: Boolean) {
+        viewModelScope.launch {
+            repository.logBedtimeModeEvent(childId, isEnteringBedtime)
+        }
+    }
 }
