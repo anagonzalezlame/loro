@@ -16,7 +16,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -69,6 +69,7 @@ fun KidsModeScreen(
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val recordingState by viewModel.recordingState.collectAsStateWithLifecycle()
     val isBedtime by viewModel.isBedtimeMode.collectAsStateWithLifecycle()
+    val qaBypassBedtime by viewModel.qaBypassBedtime.collectAsStateWithLifecycle()
 
     var showDebugOverlay by remember { mutableStateOf(false) }
     var pendingUploads by remember { mutableIntStateOf(0) }
@@ -190,7 +191,7 @@ fun KidsModeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .background(MaterialTheme.colorScheme.surface)
+                    .background(MaterialTheme.colorScheme.secondary)
             ) {
                 if (selectedContact == null) {
                     Column(modifier = Modifier.fillMaxSize()) {
@@ -199,6 +200,7 @@ fun KidsModeScreen(
                             text = "New Messages",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondary,
                             modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
                         )
                         LazyRow(
@@ -215,6 +217,7 @@ fun KidsModeScreen(
                         text = "Send a Message",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondary,
                         modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp)
                     )
                     ContactGrid(
@@ -241,7 +244,9 @@ fun KidsModeScreen(
                     uid = "mockKidId1",
                     role = "kid",
                     isOffline = pendingUploads > 0,
-                    pendingUploads = pendingUploads
+                    pendingUploads = pendingUploads,
+                    bypassBedtime = qaBypassBedtime,
+                    onBypassToggle = { viewModel.toggleQaBypassBedtime(it) }
                 )
             }
         }
@@ -313,6 +318,7 @@ fun MessageCard(
                         modifier = Modifier
                             .size(16.dp)
                             .background(MaterialTheme.colorScheme.error, CircleShape)
+                            .semantics { contentDescription = "Unread message" }
                     )
                 }
             }
@@ -344,7 +350,7 @@ fun ContactCard(
         ) {
             AsyncImage(
                 model = contact.avatarUrl,
-                contentDescription = "Avatar of ${contact.name}",
+                contentDescription = null,
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
@@ -366,6 +372,7 @@ fun ContactCard(
 @Composable
 fun LockableRecordButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
     containerColor: Color,
     contentColor: Color,
     testTag: String,
@@ -377,6 +384,9 @@ fun LockableRecordButton(
         modifier = Modifier
             .size(100.dp)
             .background(containerColor, CircleShape)
+            .semantics {
+                this.contentDescription = contentDescription
+            }
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
@@ -403,7 +413,7 @@ fun LockableRecordButton(
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(imageVector = Icons.Default.Lock, contentDescription = "Swipe up to lock", tint = contentColor.copy(alpha = 0.5f), modifier = Modifier.size(20.dp).padding(bottom = 4.dp))
+            Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = contentColor.copy(alpha = 0.5f), modifier = Modifier.size(20.dp).padding(bottom = 4.dp))
             Icon(imageVector = icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(40.dp))
         }
     }
@@ -435,12 +445,12 @@ fun RecordMessageScreen(
                 onClick = onClose,
                 modifier = Modifier
                     .size(64.dp)
-                    .background(MaterialTheme.colorScheme.errorContainer, CircleShape)
+                    .background(MaterialTheme.colorScheme.tertiary, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Close",
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    tint = MaterialTheme.colorScheme.onTertiary,
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -450,7 +460,7 @@ fun RecordMessageScreen(
 
         AsyncImage(
             model = contact.avatarUrl,
-            contentDescription = null,
+            contentDescription = "Avatar of ${contact.name}",
             modifier = Modifier
                 .size(160.dp)
                 .clip(CircleShape)
@@ -464,7 +474,7 @@ fun RecordMessageScreen(
             text = "Message ${contact.name}",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSecondary
         )
 
         Spacer(modifier = Modifier.weight(1f))
@@ -494,8 +504,9 @@ fun RecordMessageScreen(
                     ) {
                         LockableRecordButton(
                             icon = Icons.Default.Mic,
-                            containerColor = MaterialTheme.colorScheme.tertiary,
-                            contentColor = MaterialTheme.colorScheme.onTertiary,
+                            contentDescription = "Hold to record audio",
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
                             testTag = "record_audio_button",
                             onStart = { onStartRecordingHold(true) },
                             onLock = { onLockRecording() },
@@ -504,8 +515,9 @@ fun RecordMessageScreen(
 
                         LockableRecordButton(
                             icon = Icons.Default.Videocam,
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            contentDescription = "Hold to record video",
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
                             testTag = "record_video_button",
                             onStart = { onStartRecordingHold(false) },
                             onLock = { onLockRecording() },
@@ -515,16 +527,18 @@ fun RecordMessageScreen(
                 }
                 is RecordingState.Recording -> {
                     val icon = if (recordingState.isAudio) Icons.Default.Mic else Icons.Default.Videocam
+                    val desc = if (recordingState.isAudio) "Recording audio. Swipe up to lock." else "Recording video. Swipe up to lock."
                     Box(
                         modifier = Modifier
                             .size(120.dp)
-                            .background(MaterialTheme.colorScheme.error, CircleShape),
+                            .background(MaterialTheme.colorScheme.tertiary, CircleShape)
+                            .semantics { contentDescription = desc },
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Swipe up", color = MaterialTheme.colorScheme.onError, style = MaterialTheme.typography.labelSmall)
-                            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onError, modifier = Modifier.size(16.dp))
-                            Icon(icon, contentDescription = "Recording", tint = MaterialTheme.colorScheme.onError, modifier = Modifier.size(48.dp))
+                            Text("Swipe up", color = MaterialTheme.colorScheme.onTertiary, style = MaterialTheme.typography.labelSmall)
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiary, modifier = Modifier.size(16.dp))
+                            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onTertiary, modifier = Modifier.size(48.dp))
                         }
                     }
                 }
@@ -534,7 +548,7 @@ fun RecordMessageScreen(
                         Text(
                             text = "Recording Locked",
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.error,
+                            color = MaterialTheme.colorScheme.onSecondary,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
@@ -547,7 +561,7 @@ fun RecordMessageScreen(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                             ) {
-                                Icon(Icons.Default.Cancel, "Cancel")
+                                Icon(Icons.Default.Cancel, "Cancel recording")
                             }
                             FloatingActionButton(
                                 onClick = { onSendRecording(isAudio) },
@@ -555,7 +569,7 @@ fun RecordMessageScreen(
                                 contentColor = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(80.dp)
                             ) {
-                                Icon(Icons.Default.Send, "Send", modifier = Modifier.size(32.dp))
+                                Icon(Icons.AutoMirrored.Filled.Send, "Send message", modifier = Modifier.size(32.dp))
                             }
                         }
                     }
@@ -572,7 +586,9 @@ fun QADebugOverlay(
     uid: String,
     role: String,
     isOffline: Boolean,
-    pendingUploads: Int
+    pendingUploads: Int,
+    bypassBedtime: Boolean,
+    onBypassToggle: (Boolean) -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -592,6 +608,14 @@ fun QADebugOverlay(
             Text("Role: $role", color = Color.White)
             Text("Network Status: ${if (isOffline) "Offline" else "Online"}", color = Color.White)
             Text("Pending Uploads (WorkManager): $pendingUploads", color = Color.White)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Bypass Bedtime Restriction", color = Color.White, modifier = Modifier.weight(1f))
+                Switch(
+                    checked = bypassBedtime,
+                    onCheckedChange = onBypassToggle
+                )
+            }
         }
     }
 }

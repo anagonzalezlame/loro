@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.domain.model.Contact
 import com.example.domain.repository.KidsRepository
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +39,8 @@ sealed class RecordingState {
 
 class KidsModeViewModel(
     private val repository: KidsRepository,
-    private val childId: String = "default_child_id" // Mocked for now
+    private val childId: String = "default_child_id", // Mocked for now
+    private val role: String = "kid"
 ) : ViewModel() {
 
     val messages: StateFlow<List<com.example.domain.model.Message>> = repository.getMessages(childId)
@@ -57,7 +60,12 @@ class KidsModeViewModel(
     val recordingState: StateFlow<RecordingState> = _recordingState.asStateFlow()
 
     private val _isBedtimeMode = MutableStateFlow(false)
-    val isBedtimeMode: StateFlow<Boolean> = _isBedtimeMode.asStateFlow()
+    private val _qaBypassBedtime = MutableStateFlow(false)
+    val qaBypassBedtime: StateFlow<Boolean> = _qaBypassBedtime.asStateFlow()
+
+    val isBedtimeMode: StateFlow<Boolean> = combine(_isBedtimeMode, _qaBypassBedtime) { bedtime, bypass ->
+        if (bypass) false else bedtime
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _selectedContact = MutableStateFlow<Contact?>(null)
     val selectedContact: StateFlow<Contact?> = _selectedContact.asStateFlow()
@@ -71,10 +79,18 @@ class KidsModeViewModel(
     }
 
     private fun checkBedtimeMode() {
+        if (role != "kid") {
+            _isBedtimeMode.value = false
+            return
+        }
         val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         // Hardcoded for demonstration, ideally fetched from Firestore down_time config
         val isBedtime = currentHour >= 21 || currentHour < 7
         _isBedtimeMode.value = isBedtime
+    }
+
+    fun toggleQaBypassBedtime(bypass: Boolean) {
+        _qaBypassBedtime.value = bypass
     }
 
     private fun refreshMessages() {
