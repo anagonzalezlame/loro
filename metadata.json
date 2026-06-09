@@ -1,0 +1,6 @@
+{
+  "name": "Family Connect",
+  "description": "Secure family communication app with kids and adults mode.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

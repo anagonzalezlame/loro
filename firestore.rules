@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdult(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role == 'adult';
+    }
+
+    function isKid(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role == 'kid';
+    }
+    
+    function isApprovedContact(kidUid, contactUid) {
+      return contactUid in get(/databases/$(database)/documents/users/$(kidUid)).data.approved_contacts;
+    }
+
+    function isPrimaryGuardian(kidUid, adultUid) {
+      return get(/databases/$(database)/documents/users/$(kidUid)).data.primary_guardian_uid == adultUid;
+    }
+
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Kid Users: Can only read their own document
+      // (This is covered by the rule above)
+      
+      // Adult Users: Can create/update Kid profiles only if their own UID matches the primary_guardian_uid of that Kid.
+      // E.g., for creating a new kid profile or updating one.
+      allow create, update: if isAuthenticated() &&
+                            request.resource.data.role == 'kid' &&
+                            request.resource.data.primary_guardian_uid == request.auth.uid &&
+                            isAdult(request.auth.uid) &&
+                            (!request.resource.data.keys().hasAny(['downtime_start', 'downtime_end']) || 
+                             (request.resource.data.downtime_start is number && request.resource.data.downtime_end is number));
+                            
+      // An adult can also read a Kid's profile if they are the primary guardian
+      allow read: if isAuthenticated() &&
+                  isKid(userId) &&
+                  isPrimaryGuardian(userId, request.auth.uid);
+                  
+      // Allow adults to update their own document
+      allow update: if isAuthenticated() && request.auth.uid == userId && request.resource.data.role == 'adult';
+    }
+
+    match /messages/{messageId} {
+      // Kid Users: can only read messages where they are sender or recipient, and the other party is an approved contact.
+      // Adult Users: can read messages involving their managed kids.
+      allow read: if isAuthenticated() && (
+        (
+          // Kid reading their own messages where the other party is approved
+          isKid(request.auth.uid) && 
+          (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid) &&
+          (resource.data.senderId == request.auth.uid ? isApprovedContact(request.auth.uid, resource.data.recipientId) : isApprovedContact(request.auth.uid, resource.data.senderId))
+        ) || (
+          // Adult reading messages involving themselves or their managed kids
+          isAdult(request.auth.uid) &&
+          (
+            resource.data.senderId == request.auth.uid || 
+            resource.data.recipientId == request.auth.uid ||
+            (isKid(resource.data.senderId) && isPrimaryGuardian(resource.data.senderId, request.auth.uid)) ||
+            (isKid(resource.data.recipientId) && isPrimaryGuardian(resource.data.recipientId, request.auth.uid))
+          )
+        )
+      );
+
+      // A message can only be initiated by a Kid if the recipient's UID exists within the approved_contacts array
+      // Enforce that a message between a Kid and another user can only be created if the relationship is validated.
+      allow create: if isAuthenticated() && (
+        // Scenario 1: A kid is sending a message
+        (isKid(request.auth.uid) && request.resource.data.senderId == request.auth.uid && isApprovedContact(request.auth.uid, request.resource.data.recipientId)) ||
+        // Scenario 2: An adult is sending a message
+        (isAdult(request.auth.uid) && request.resource.data.senderId == request.auth.uid && (
+          isAdult(request.resource.data.recipientId) || 
+          (isKid(request.resource.data.recipientId) && isApprovedContact(request.resource.data.recipientId, request.auth.uid))
+        ))
+      );
+      
+      // Update/Delete (for Adult Mode local clean up or read receipts)
+      allow update: if isAuthenticated() && (
+        (isAdult(request.auth.uid) && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid)) ||
+        (isAdult(request.auth.uid) && isKid(resource.data.senderId) && isPrimaryGuardian(resource.data.senderId, request.auth.uid)) ||
+        (isAdult(request.auth.uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read_receipt']))
+      );
+      allow delete: if isAuthenticated() && (
+        (isAdult(request.auth.uid) && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid)) ||
+        (isAdult(request.auth.uid) && isKid(resource.data.senderId) && isPrimaryGuardian(resource.data.senderId, request.auth.uid))
+      );
+    }
+  }
+}
