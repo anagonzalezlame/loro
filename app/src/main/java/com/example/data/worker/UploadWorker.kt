@@ -90,6 +90,7 @@ class UploadWorker(
             Result.success()
         } catch (e: Exception) {
             android.util.Log.w("UploadWorker", "Worker execution failed: ${e.message}")
+            com.example.util.LoroFirebaseLogger.logNonFatal(e, "WorkManager upload network failure")
             Result.retry()
         }
     }

@@ -51,6 +51,9 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    // Initialize our Analytics and Crashlytics wrapper
+    com.example.util.LoroFirebaseLogger.initialize(applicationContext)
+    
     val db = AppDatabase.getDatabase(applicationContext)
     
     enableEdgeToEdge()
@@ -79,7 +82,11 @@ class MainActivity : ComponentActivity() {
               factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                  return KidsModeViewModel(KidsDataRepository(db.messageDao(), db.contactDao())) as T
+                  val streakRepo = com.example.data.repository.StreakRepository(applicationContext)
+                  return KidsModeViewModel(
+                      repository = KidsDataRepository(db.messageDao(), db.contactDao()),
+                      streakRepository = streakRepo
+                  ) as T
                 }
               }
             )
@@ -93,32 +100,34 @@ class MainActivity : ComponentActivity() {
               }
             )
 
-            androidx.compose.animation.AnimatedContent(
-                targetState = currentScreen,
-                label = "screenTransition"
-            ) { screen ->
-                when (screen) {
-                    "kids" -> {
-                        KidsModeScreen(
-                            viewModel = kidsViewModel,
-                            onExitKidsMode = { currentScreen = "pin" }
-                        )
-                    }
-                    "pin" -> {
-                        com.example.ui.adults.PinAuthScreen(
-                            viewModel = adultsViewModel,
-                            onAuthenticated = { currentScreen = "adults" },
-                            onBack = { currentScreen = "kids" }
-                        )
-                    }
-                    "adults" -> {
-                        com.example.ui.adults.AdultsModeDashboard(
-                            viewModel = adultsViewModel,
-                            onExitDashboard = {
-                                adultsViewModel.lockAdultMode()
-                                currentScreen = "kids"
-                            }
-                        )
+            com.example.ui.components.LoroPermissionsGate {
+                androidx.compose.animation.AnimatedContent(
+                    targetState = currentScreen,
+                    label = "screenTransition"
+                ) { screen ->
+                    when (screen) {
+                        "kids" -> {
+                            KidsModeScreen(
+                                viewModel = kidsViewModel,
+                                onExitKidsMode = { currentScreen = "pin" }
+                            )
+                        }
+                        "pin" -> {
+                            com.example.ui.adults.PinAuthScreen(
+                                viewModel = adultsViewModel,
+                                onAuthenticated = { currentScreen = "adults" },
+                                onBack = { currentScreen = "kids" }
+                            )
+                        }
+                        "adults" -> {
+                            com.example.ui.adults.AdultsModeDashboard(
+                                viewModel = adultsViewModel,
+                                onExitDashboard = {
+                                    adultsViewModel.lockAdultMode()
+                                    currentScreen = "kids"
+                                }
+                            )
+                        }
                     }
                 }
             }

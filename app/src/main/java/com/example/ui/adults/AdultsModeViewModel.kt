@@ -30,6 +30,7 @@ class AdultsModeViewModel(
 
     private val errorHandler = kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
         android.util.Log.e("AdultsModeViewModel", "Globally caught coroutine throwable: ${throwable.message}", throwable)
+        com.example.util.LoroFirebaseLogger.logNonFatal(throwable, "AdultsModeViewModel global coroutine crash")
         _errorMessage.value = throwable.localizedMessage ?: "A remote or database operation error occurred"
     }
 

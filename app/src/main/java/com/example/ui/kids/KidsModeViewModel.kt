@@ -44,11 +44,13 @@ class KidsModeViewModel(
     private val repository: KidsRepository,
     private val childId: String = "default_child_id", // Mocked for now
     private val role: String = "kid",
-    private val getCurrentHour: () -> Int = { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
+    private val getCurrentHour: () -> Int = { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) },
+    private val streakRepository: com.example.data.repository.StreakRepository? = null
 ) : ViewModel() {
 
     private val errorHandler = kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
         android.util.Log.e("KidsModeViewModel", "Globally caught coroutine throwable: ${throwable.message}", throwable)
+        com.example.util.LoroFirebaseLogger.logNonFatal(throwable, "KidsModeViewModel global coroutine crash")
         _uploadState.value = UploadState.Error(throwable.localizedMessage ?: "Network or database error occurred")
     }
 
@@ -67,6 +69,9 @@ class KidsModeViewModel(
 
     private val _approvedContacts = MutableStateFlow<List<Contact>>(emptyList())
     val approvedContacts: StateFlow<List<Contact>> = _approvedContacts.asStateFlow()
+
+    private val _streakCount = MutableStateFlow(0)
+    val streakCount: StateFlow<Int> = _streakCount.asStateFlow()
 
     private val _uploadState = MutableStateFlow<UploadState>(UploadState.Idle)
     val uploadState: StateFlow<UploadState> = _uploadState.asStateFlow()
@@ -111,6 +116,20 @@ class KidsModeViewModel(
         loadContacts()
         refreshMessages()
         checkBedtimeMode() // E.g., check between 21:00 (9PM) and 7:00 (7AM)
+        
+        // Load streak counter and register daily app opening check
+        viewModelScope.launch {
+            streakRepository?.checkAndIncrementStreak()
+            streakRepository?.streakFlow?.collect { count ->
+                _streakCount.value = count
+            }
+        }
+    }
+
+    fun recordActiveStreak() {
+        viewModelScope.launch {
+            streakRepository?.checkAndIncrementStreak()
+        }
     }
 
     private var downtimeStartHour = 21
@@ -155,6 +174,10 @@ class KidsModeViewModel(
 
     fun toggleQaBypassBedtime(bypass: Boolean) {
         _qaBypassBedtime.value = bypass
+        val params = android.os.Bundle().apply {
+            putBoolean("bypass_state", bypass)
+        }
+        com.example.util.LoroFirebaseLogger.logEvent("qa_bypass_used", params)
     }
 
     private fun refreshMessages() {
@@ -287,8 +310,25 @@ class KidsModeViewModel(
 
             WorkManager.getInstance(context).enqueue(uploadWork)
             _uploadState.value = UploadState.Success // Optimistic UI update
+
+            // Track Firebase Analytics events
+            val sentParams = android.os.Bundle().apply {
+                putString("media_type", if (isAudio) "audio" else "video")
+                putString("recipient_id", contactId)
+            }
+            com.example.util.LoroFirebaseLogger.logEvent("message_sent", sentParams)
+
+            val queueParams = android.os.Bundle().apply {
+                putString("msg_id", msgId)
+                putBoolean("is_audio", isAudio)
+            }
+            com.example.util.LoroFirebaseLogger.logEvent("offline_queue_activated", queueParams)
+
+            // Dynamic locally active daily checked streak
+            recordActiveStreak()
         } catch (e: Exception) {
             android.util.Log.e("KidsModeViewModel", "Failed to enqueue upload worker in WorkManager", e)
+            com.example.util.LoroFirebaseLogger.logNonFatal(e, "WorkManager offline queue activation failure")
             _uploadState.value = UploadState.Error("Offline uploading setup failed.")
         }
     }

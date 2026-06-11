@@ -113,6 +113,7 @@ fun KidsModeScreen(
     val recordingState by viewModel.recordingState.collectAsStateWithLifecycle()
     val isBedtime by viewModel.isBedtimeMode.collectAsStateWithLifecycle()
     val qaBypassBedtime by viewModel.qaBypassBedtime.collectAsStateWithLifecycle()
+    val streakCount by viewModel.streakCount.collectAsStateWithLifecycle()
 
     val contactMessages by viewModel.selectedContactMessages.collectAsStateWithLifecycle()
     var playingMessage by remember { mutableStateOf<com.example.domain.model.Message?>(null) }
@@ -201,6 +202,36 @@ fun KidsModeScreen(
                     ) 
                 },
                 actions = {
+                    if (streakCount > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFFFB300), // Parrot Yellow/Orange
+                            modifier = Modifier
+                                .padding(end = 12.dp)
+                                .semantics {
+                                    contentDescription = "Day active streak: $streakCount days"
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "$streakCount Days",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        }
+                    }
                     TextButton(onClick = debouncedExit) {
                         Text("Exit", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                     }
@@ -450,8 +481,8 @@ fun ContactCard(
             .aspectRatio(1f)
             .clickable(onClick = onClick)
             .testTag("contact_card_${contact.id}")
-            .semantics {
-                contentDescription = "Contact ${contact.name}"
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Tap to open chat with family member, ${contact.name}"
             },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
@@ -650,12 +681,22 @@ fun RecordMessageScreen(
             ) {
                 items(messages, key = { it.id }) { message ->
                     val isFromMe = message.senderId == "default_child_id"
+                    val readableSender = if (isFromMe) "Sent by you" else "Message from ${contact.name}"
+                    val readableType = if (message.mediaType == "video") "Video message" else "Audio voice message"
+                    val readableReadStatus = if (message.isRead) "previously opened" else "new unread"
+                    val accessibilityLabel = "$readableSender, $readableType, status: $readableReadStatus. Tap to play."
+
                     Card(
                         onClick = { onPlayMessage(message) },
                         colors = CardDefaults.cardColors(
                             containerColor = if (isFromMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
                         ),
-                        modifier = Modifier.fillMaxWidth().testTag("kids_chat_row_msg_${message.id}"),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = accessibilityLabel
+                            }
+                            .testTag("kids_chat_row_msg_${message.id}"),
                         shape = RoundedCornerShape(18.dp)
                     ) {
                         Row(
@@ -792,8 +833,11 @@ fun RecordMessageScreen(
             when (recordingState) {
                 is RecordingState.Idle -> {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         LockableRecordButton(
                             icon = Icons.Default.Mic,
