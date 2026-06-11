@@ -11,27 +11,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = ParrotLightBlue,
+    primary = ParrotPrimaryBlue,
     onPrimary = androidx.compose.ui.graphics.Color.White,
     primaryContainer = ParrotDarkBlue,
     onPrimaryContainer = androidx.compose.ui.graphics.Color.White,
-    secondary = ParrotYellow,
+    secondary = ParrotOrange,
     onSecondary = androidx.compose.ui.graphics.Color.Black,
-    tertiary = ParrotOrange,
-    onTertiary = androidx.compose.ui.graphics.Color.White,
+    tertiary = ParrotYellow,
+    onTertiary = androidx.compose.ui.graphics.Color.Black,
     error = ParrotRed,
-    onError = androidx.compose.ui.graphics.Color.White
+    onError = androidx.compose.ui.graphics.Color.White,
+    background = androidx.compose.ui.graphics.Color(0xFF1B1B1D),
+    surface = androidx.compose.ui.graphics.Color(0xFF1B1B1D),
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = ParrotLightBlue,
+    primary = ParrotPrimaryBlue,
     onPrimary = androidx.compose.ui.graphics.Color.White,
     primaryContainer = ParrotDarkBlue,
     onPrimaryContainer = androidx.compose.ui.graphics.Color.White,
-    secondary = ParrotYellow,
-    onSecondary = androidx.compose.ui.graphics.Color.Black,
-    tertiary = ParrotOrange,
-    onTertiary = androidx.compose.ui.graphics.Color.White,
+    secondary = ParrotOrange,
+    onSecondary = androidx.compose.ui.graphics.Color.White,
+    tertiary = ParrotYellow,
+    onTertiary = androidx.compose.ui.graphics.Color.Black,
     error = ParrotRed,
     onError = androidx.compose.ui.graphics.Color.White,
     background = androidx.compose.ui.graphics.Color(0xFFFFFBFE),

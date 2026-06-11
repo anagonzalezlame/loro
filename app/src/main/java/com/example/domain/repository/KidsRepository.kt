@@ -7,6 +7,8 @@ import java.io.File
 interface KidsRepository {
     fun getApprovedContacts(childId: String): Flow<List<Contact>>
     fun getMessages(childId: String): Flow<List<com.example.domain.model.Message>>
+    fun getMessagesBetween(childId: String, contactId: String): Flow<List<com.example.domain.model.Message>>
+    suspend fun markAsRead(messageId: String)
     suspend fun refreshMessages(childId: String)
     suspend fun uploadVideoMessage(contactId: String, videoFile: File): Result<Unit>
     suspend fun uploadAudioMessage(contactId: String, audioFile: File): Result<Unit>

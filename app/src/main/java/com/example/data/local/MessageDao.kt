@@ -11,6 +11,9 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE recipientId = :childId ORDER BY timestamp DESC")
     fun getMessagesForChild(childId: String): Flow<List<MessageEntity>>
 
+    @Query("SELECT * FROM messages WHERE (senderId = :childId AND recipientId = :contactId) OR (senderId = :contactId AND recipientId = :childId) ORDER BY timestamp ASC")
+    fun getMessagesBetween(childId: String, contactId: String): Flow<List<MessageEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
 

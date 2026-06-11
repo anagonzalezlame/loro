@@ -55,7 +55,14 @@ android {
     compose = true
     buildConfig = true
   }
-  testOptions { unitTests { isIncludeAndroidResources = true } }
+  testOptions { 
+    unitTests { 
+      isIncludeAndroidResources = true 
+      all {
+        it.useJUnitPlatform()
+      }
+    } 
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -104,12 +111,19 @@ dependencies {
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
   implementation(libs.androidx.work.runtime.ktx)
+  testImplementation(libs.junit.jupiter.api)
+  testRuntimeOnly(libs.junit.jupiter.engine)
+  testRuntimeOnly(libs.junit.vintage.engine)
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
+  testImplementation(libs.mockito.core)
+  testImplementation(libs.mockito.kotlin)
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
   testImplementation(libs.robolectric)
+  testImplementation("androidx.work:work-testing:2.9.0")
   testImplementation(libs.roborazzi)
   testImplementation(libs.roborazzi.compose)
   testImplementation(libs.roborazzi.junit.rule)

@@ -23,6 +23,20 @@ class MockKidsRepository : KidsRepository {
         emit(emptyList())
     }
 
+    override fun getMessagesBetween(childId: String, contactId: String): Flow<List<com.example.domain.model.Message>> = flow {
+        // Return some mock messages for child communication history preview
+        val now = System.currentTimeMillis()
+        emit(
+            listOf(
+                com.example.domain.model.Message("m1", contactId, childId, "video", null, "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4", now - 1000 * 60 * 30, false),
+                com.example.domain.model.Message("m2", contactId, childId, "audio", null, "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", now - 1000 * 60 * 120, true),
+                com.example.domain.model.Message("m3", childId, contactId, "audio", null, "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", now - 1000 * 60 * 600, true)
+            )
+        )
+    }
+
+    override suspend fun markAsRead(messageId: String) {}
+
     override suspend fun refreshMessages(childId: String) {}
 
     override suspend fun uploadVideoMessage(contactId: String, videoFile: File): Result<Unit> {
